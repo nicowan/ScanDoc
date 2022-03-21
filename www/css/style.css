@@ -1,0 +1,49 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+#parent {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+
+    width: 100vw;
+    height: 100vh;
+    background-color: black;
+    color: white;
+    border: 1px solid red;
+}
+
+#hidden {
+    display: none;
+}
+
+
+
+/*
+ * Styling the first page : Open camera and take a picture
+ */
+
+#openCamera {
+    display: none;
+}
+
+.openCamera {
+    background-color: #ccc;
+    color: black;
+    border: 4px groove #fff;
+    display: block;
+    width:  500px;
+    height: 250px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+    margin-top: 5em;
+}
