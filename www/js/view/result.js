@@ -138,9 +138,14 @@ export class AppResultView extends BaseElement {
         dstElem.width  = dstSize.cols;
         dstElem.height = dstSize.rows;
 
-        //cv.imshow(outputCanvasId, dstImage); original , does it work with the canvas object ?
         cv.imshow(this.canvas, dstImage);
         
+        // Copy canvas to image to make it shareable
+        this.shadowRoot.querySelector('img').src =
+            this.canvas.toDataURL("image/jpg");
+
+
+
 
         // Free allocated memory
         srcImage.delete();
@@ -161,7 +166,8 @@ export class AppResultView extends BaseElement {
      getHtml() {
         return `
             <h3>Result view</h3>
-            <canvas></canvas>
+            <canvas class="hidden"></canvas>
+            <img>
         `;
     }
 
@@ -177,10 +183,19 @@ export class AppResultView extends BaseElement {
                 height: 100%;
             }
 
+            img {
+                width:100%;
+                height: 100%;
+            }
+
             h3 {
                 background-color: #48A;
                 color: white;
                 text-align: center;
+            }
+
+            .hidden {
+                display: none;   
             }
         `;
     }
