@@ -4,6 +4,7 @@
 import { IMAGE_LOADED_EVENT, EDIT_FINISHED_EVENT } from './events.js';
 import { ViewGetImage } from './view/get-image.js';
 import { ViewPerspective } from './view/perspective.js';
+import { AppResultView } from './view/result.js';
 
 let state    = "loadImage";
 let imageRaw = null;
@@ -34,6 +35,12 @@ function main(event) {
 
     mainElem.addEventListener(EDIT_FINISHED_EVENT, (event) => {
         console.log("Image corners specified", event.detail.polygon);
+        mainElem.innerHTML = "<app-result></app-result>";
+
+        const view = mainElem.querySelector('app-result');
+        view.setSourceImage(imageRaw);
+        view.setCorners(event.detail.polygon);
+
     }, false);
 
 
