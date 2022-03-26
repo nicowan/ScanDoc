@@ -1,7 +1,28 @@
 /**
- * BaseElement class is used to derive all other custom elements
+ * Shared parts of all UI elements
  */
- export class BaseElement extends HTMLElement {
+
+export const STYLE = `
+    :host {
+        width:100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: center;
+    }
+
+    h1 {
+        background-color: #48A;
+        color: white;
+        text-align: center;
+    }
+`;
+
+/**
+ * Base class is used to derive all other custom elements
+ */
+export class Base extends HTMLElement {
     /**
      * Custom element's constructor
      */
@@ -72,7 +93,7 @@
      * @returns {string} The custom element's CSS content
      */
     getStyle() {
-        return '';
+        return STYLE;
     }
 
     /**

@@ -4,25 +4,16 @@
  * @copyright 2022, Nicolas Wanner
  */
 
-import {BaseElement} from './base-elem.js';
-
-// Target paper dimensions
-const PAPER_WIDTH  = 210;
-const PAPER_HEIGHT = 297;
+import * as Paper   from '../tools/paper.js';
+import * as Element from '../tools/element.js';
 
 
-export class AppResultView extends BaseElement {
+export class View extends Element.Base {
     /** @type {Number} Scaling factor between canvas and DOM coordinates */
     scale = 1;
 
     /** @type {HTMLImageElement} background image */
     image = null;
-
-    /** @type {HTMLCanvasElement} */
-    canvas = null;
-
-    /** @type {CanvasRenderingContext2D} */
-    context = null;
 
     /** @type {Array<Number>} The positions of the distorted image corner */
     corners = [];
@@ -41,38 +32,21 @@ export class AppResultView extends BaseElement {
         this.shadowRoot.innerHTML = this.getHtml();
         this.shadowRoot.appendChild(this.makeStyle());
 
-        this.canvas = this.shadowRoot.querySelector('canvas');
-        this.context = this.canvas.getContext('2d');
-    
-        this.updateScaling();
-        this.setCanvasDisplaySize();
+        // Create an image with 150 DPI  for the document
+        const cnv = this.shadowRoot.querySelector('canvas');
+
+        cnv.width  = Paper.WIDTH  * Paper.DENSITY;
+        cnv.height = Paper.HEIGHT * Paper.DENSITY;
+
+        console.log("Canvas image", cnv.width, cnv.height);
+
+        const scale = this.shadowRoot.host.clientWidth / cnv.width;
+
+        // Set display height
+        cnv.style.width  = `${this.shadowRoot.host.clientWidth}px`;
+        cnv.style.height = `${cnv.height * scale}px`;
+        console.log("Canvas screen", cnv.style.width, cnv.style.height);
     }
-
-
-
-    /**
-     * Compute scaleing factor between canvas and DOM
-     */
-    updateScaling() {
-        this.scale = this.shadowRoot.host.clientWidth / this.canvas.width;
-    }
-
-    /**
-     * Set the canvas' display size
-     */
-    setCanvasDisplaySize() {
-        this.canvas.style.width  = `${Math.round(this.canvas.width  * this.scale)}px`;
-        this.canvas.style.height = `${Math.round(this.canvas.height * this.scale)}px`;    
-    }
-
-
-    setCorners(polygon) {
-        for (const coord of polygon) {
-            this.corners.push(coord);
-        }
-        this.correctPerspective(null, null, this.corners);
-    }
-
 
     /**
      * Set the image in this view
@@ -81,18 +55,15 @@ export class AppResultView extends BaseElement {
     setSourceImage(imageRaw) {
         this.image = imageRaw;
 
-        // Set the canvas size according to the picture
-        // with same form factor as document's paper
-        this.canvas.width  = this.image.width;
-        this.canvas.height = this.image.width / PAPER_WIDTH * PAPER_HEIGHT;
-
-        // Update the scaling factor
-        this.updateScaling();
-        this.setCanvasDisplaySize();
-
         // Display everything
         if (this.corners.length == 8) {
             this.correctPerspective(null, null, this.corners);
+        }
+    }
+
+    setCorners(polygon) {
+        for(let i=0; i<polygon.length; i++) {
+            this.corners[i] = polygon[i];
         }
     }
 
@@ -115,7 +86,7 @@ export class AppResultView extends BaseElement {
         const srcCorners = cv.matFromArray(4, 1, cv.CV_32FC2, corners);
 
         /** @type {HTMLCanvasElement} */
-        const dstElem = this.canvas; //document.getElementById(outputCanvasId);
+        const dstElem = this.shadowRoot.querySelector('canvas');
 
         /** @type {OpenCvMattrix} */
         const dstImage = new cv.Mat();
@@ -123,12 +94,12 @@ export class AppResultView extends BaseElement {
         /** @type {OpenCvMattrix} Output document's corner  */
         const dstCorners = cv.matFromArray(4, 1, cv.CV_32FC2, [
             0,                  0,
-            this.canvas.width,  0,
-            this.canvas.width,  this.canvas.height,
-            0,                  this.canvas.height]);
+            dstElem.width,  0,
+            dstElem.width,  dstElem.height,
+            0,              dstElem.height]);
 
         /** @type {OpenCvSize} OpenCV destination image's size */
-        const dstSize = new cv.Size(this.canvas.width,  this.canvas.height);
+        const dstSize = new cv.Size(dstElem.width,  dstElem.height);
 
         /** @type {OpenCvTransform} Transformation mattrix */
         const transform = cv.getPerspectiveTransform(srcCorners, dstCorners);
@@ -138,13 +109,14 @@ export class AppResultView extends BaseElement {
         dstElem.width  = dstSize.cols;
         dstElem.height = dstSize.rows;
 
-        cv.imshow(this.canvas, dstImage);
+        cv.imshow(dstElem, dstImage);
         
         // Copy canvas to image to make it shareable
-        this.shadowRoot.querySelector('img').src =
-            this.canvas.toDataURL("image/jpg");
+        const img = this.shadowRoot.querySelector('img')
+        img.src = dstElem.toDataURL("image/jpg");
 
-
+        img.style.width = dstElem.style.width;
+        img.style.height = dstElem.style.height;
 
 
         // Free allocated memory
@@ -165,7 +137,7 @@ export class AppResultView extends BaseElement {
      */
      getHtml() {
         return `
-            <h3>Result view</h3>
+            <h1>Identify the document</h1>
             <canvas class="hidden"></canvas>
             <img>
         `;
@@ -176,29 +148,45 @@ export class AppResultView extends BaseElement {
      * 
      * @returns {string} The custom element's CSS content
      */
-    getStyle() {
-        return `
-            :host {
-                width:100%;
-                height: 100%;
-            }
+     getStyle() {
+        return ` ${super.getStyle()}
 
-            img {
-                width:100%;
-                height: 100%;
-            }
+        nav {
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: space-between;
+        }
 
-            h3 {
-                background-color: #48A;
-                color: white;
-                text-align: center;
-            }
+        nav button {
+            width: 30%;
+            height: 3em;
+            margin: 0.5em 1em; 
+            font-weight: bolder;
+        }
 
-            .hidden {
-                display: none;   
-            }
+        img {
+            width:100%;
+            margin:0;
+            padding:0;
+        }
+
+        #debug {
+            width: 95%;
+            height: 2.5em;
+            margin : auto;
+            padding : 0.25em;
+            border: 1px solid white;
+        }
+
+        .hidden {
+            display: none;
+        }
         `;
     }
+
 
     /**
      * @type {Array>String>} Array of observed attributes
@@ -209,4 +197,4 @@ export class AppResultView extends BaseElement {
 
 }
 
-window.customElements.define('app-result', AppResultView);
+window.customElements.define('app-result', View);
