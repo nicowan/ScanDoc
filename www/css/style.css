@@ -4,64 +4,54 @@
     box-sizing: border-box;
 }
 
+body {
+    background-color: #666;
+    color: white;
+}
+
 main {
     display: flex;
     flex-direction: column;
     flex-wrap: nowrap;
     align-items: center;
     justify-content: center;
-
-    width: 414px;
-    height: 824px;
     background-color: black;
     color: white;
 }
 
-#hidden {
-    display: none;
+/* Mobile phone */
+@media only screen and (max-width: 480px) {
+    main {
+        width: 100vw;
+        height: 100vh;
+        background-color: #400;
+    }
 }
 
-
-/*
- * Styling the first page : Open camera and take a picture
- */
-
-.getImage #openCamera {
-    display: none;
+/* Tablet */
+@media only screen and (max-width: 768px) {
+    main {
+        width: 100vw;
+        height: 100vh;
+        background-color: #040;
+    }
 }
 
-.getImage .openCamera {
-    background-color: #ccc;
-    color: black;
-    border: 4px groove #fff;
-    display: block;
-    width:  75%;
-    height: 5em;
-    cursor: pointer;
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: center;
-    justify-content: center;
-    margin-top: 5em;
+/* Laptop  */
+@media only screen and (max-width: 1024px) {
+    main {
+        width: 100vw;
+        height: 100vh;
+        background-color: #004;
+    }
 }
 
-
-/*
- * Styling the perspective correction
- */
-
-.perspective #edit {
-    position: relative;
-    width: 100%;
-    height: 100%;
+/* Computer  */
+@media only screen and (min-width: 1024px) {
+    main {
+        width: 1024px;
+        height: 100vh;
+        background-color: #044;
+    }
 }
 
-.perspective .corners {
-    position: absolute;
-}
-
-#cursor1 {
-    left: 0px;
-    top: 0px;
-}

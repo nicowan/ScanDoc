@@ -356,7 +356,8 @@ export class View extends Element.Base {
      * @param {String} text The text to print
      */
     printDebug(text) {
-        this.shadowRoot.querySelector("#debug").innerHTML = text;
+        const target = this.shadowRoot.querySelector("#debug")
+        if (target) target.innerHTML = text;
     }
 
     /**
@@ -512,8 +513,7 @@ export class View extends Element.Base {
      */
     getHtml() {
         return `
-            <h1>Identify the document</h1>
-            <p id="debug">---</p>
+            <p id="debug"></p>
             <div id="edit">
                 <img>
                 <canvas></canvas>
@@ -551,8 +551,9 @@ export class View extends Element.Base {
 
         #edit {
             width: 100%;
-            height: 100%;
+            height: calc(100% - 4em);
             position: relative;
+            background-color: pink
         }
 
         #edit canvas, #edit img {
@@ -565,14 +566,6 @@ export class View extends Element.Base {
             width:100%;
             margin:0;
             padding:0;
-        }
-
-        #debug {
-            width: 95%;
-            height: 2.5em;
-            margin : auto;
-            padding : 0.25em;
-            border: 1px solid white;
         }
 
         .valid {

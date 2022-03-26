@@ -16,6 +16,16 @@ export const STYLE = `
         background-color: #48A;
         color: white;
         text-align: center;
+        font-size: 125%
+    }
+
+    #debug {
+        display: none;
+        width: 95%;
+        height: 2.5em;
+        margin : auto;
+        padding : 0.25em;
+        border: 1px solid white;
     }
 `;
 

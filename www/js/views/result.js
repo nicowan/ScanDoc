@@ -137,7 +137,7 @@ export class View extends Element.Base {
      */
      getHtml() {
         return `
-            <h1>Identify the document</h1>
+            <h1>Share it</h1>
             <canvas class="hidden"></canvas>
             <img>
         `;
@@ -171,14 +171,6 @@ export class View extends Element.Base {
             width:100%;
             margin:0;
             padding:0;
-        }
-
-        #debug {
-            width: 95%;
-            height: 2.5em;
-            margin : auto;
-            padding : 0.25em;
-            border: 1px solid white;
         }
 
         .hidden {
