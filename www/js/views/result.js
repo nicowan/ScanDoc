@@ -112,12 +112,14 @@ export class View extends Element.Base {
         cv.imshow(dstElem, dstImage);
         
         // Copy canvas to image to make it shareable
-        const img = this.shadowRoot.querySelector('img')
-        img.src = dstElem.toDataURL("image/jpg");
+        const img = this.shadowRoot.querySelector('img');
+        img.src = dstElem.toDataURL("image/jpeg");
 
         img.style.width = dstElem.style.width;
         img.style.height = dstElem.style.height;
 
+
+        this.createPdf(dstElem.toDataURL("image/jpeg"));
 
         // Free allocated memory
         srcImage.delete();
@@ -127,6 +129,63 @@ export class View extends Element.Base {
         transform.delete();
     }
 
+    dataURItoBlob(dataURI) {
+        // convert base64 to raw binary data held in a string
+        // doesn't handle URLEncoded DataURIs - see SO answer #6850276 for code that does this
+        var byteString = atob(dataURI.split(',')[1]);
+      
+        // separate out the mime component
+        var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0]
+      
+        // write the bytes of the string to an ArrayBuffer
+        var ab = new ArrayBuffer(byteString.length);
+      
+        // create a view into the buffer
+        var ia = new Uint8Array(ab);
+      
+        // set the bytes of the buffer to the correct values
+        for (var i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+      
+        // write the ArrayBuffer to a blob, and you're done
+        var blob = new Blob([ab], {type: mimeString});
+        return blob;
+      
+      }
+
+
+    async createPdf(image) {
+        /** @type {HTMLCanvasElement} */
+        const cnv = this.shadowRoot.querySelector('canvas');
+
+        /** @type {CanvasRenderingContext2D} */
+        const ctx = cnv.getContext('2d');
+
+
+        const pdfDoc = await PDFLib.PDFDocument.create();
+
+        //const jpgUrl = 'img/exemple.jpg'
+        //const jpgImageBytes = await fetch(jpgUrl).then((res) => res.arrayBuffer())
+        //const jpgImageBytes = ctx.getImageData(0, 0, cnv.width, cnv.height);
+        const jpgImageBytes = image;
+        const jpgImage = await pdfDoc.embedJpg(jpgImageBytes)
+
+        const page = pdfDoc.addPage([
+            Math.round(210 / 25.4 * 72),
+            Math.round(297 / 25.4 * 72)
+        ]);
+
+        page.drawImage(jpgImage, {
+            x: 0,
+            y: 0,
+            width: 210 / 25.4 * 72,
+            height: 297 / 25.4 * 72,
+        })
+
+        const pdfDataUri = await pdfDoc.saveAsBase64({ dataUri: true });
+        this.shadowRoot.getElementById('pdf').src = pdfDataUri;
+    }
 
 
 
@@ -135,11 +194,12 @@ export class View extends Element.Base {
      * 
      * @returns {string} The custom element's HTML content
      */
-     getHtml() {
+    getHtml() {
         return `
-            <h1>Share it</h1>
+            <h1>Share it !</h1>
+            <iframe id="pdf"></iframe>
             <canvas class="hidden"></canvas>
-            <img>
+            <img class="hidden">
         `;
     }
 
@@ -165,6 +225,12 @@ export class View extends Element.Base {
             height: 3em;
             margin: 0.5em 1em; 
             font-weight: bolder;
+        }
+
+        #pdf {
+            width:100%;
+            height: 400px;
+            border: 4px solid red;
         }
 
         img {

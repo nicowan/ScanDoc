@@ -514,14 +514,14 @@ export class View extends Element.Base {
     getHtml() {
         return `
             <p id="debug"></p>
-            <div id="edit">
-                <img>
-                <canvas></canvas>
-            </div>
             <nav>
                 <button id="cancel" class="cancel">Cancel</button>
                 <button id="correct" class="valid">Correct</button>
             </nav>
+            <div id="edit">
+                <img>
+                <canvas></canvas>
+            </div>
         `;
     }
 
@@ -551,7 +551,6 @@ export class View extends Element.Base {
 
         #edit {
             width: 100%;
-            height: calc(100% - 4em);
             position: relative;
             background-color: pink
         }
