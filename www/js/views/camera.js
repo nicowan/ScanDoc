@@ -20,8 +20,9 @@ export class View extends Element.Base {
     /**
      * Update the component content and style
      */
-    update() {
-        super.update();
+    renderShadowDOM() {
+        super.renderShadowDOM();
+        
         // DOM has changed, update the event listeners
         const btn = this.shadowRoot.querySelector('#openCamera');
         btn.addEventListener( 'change', event => this.getCameraImage(event));

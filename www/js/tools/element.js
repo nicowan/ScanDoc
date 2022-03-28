@@ -48,7 +48,7 @@ export class Base extends HTMLElement {
      * Called when the custom component is added to the page
      */
     connectedCallback() {
-        this.update()
+        this.renderShadowDOM();
     }
 
     /**
@@ -67,13 +67,13 @@ export class Base extends HTMLElement {
             data = newValue;
         }
         this[name] = data;
-		this.update();
+		this.renderShadowDOM();
     }
 
     /**
      * Update the component content and style
      */
-    update() {
+    renderShadowDOM() {
         this.shadowRoot.innerHTML = this.getHtml();
         this.shadowRoot.appendChild(this.makeStyle());
     }

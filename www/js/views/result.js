@@ -7,6 +7,8 @@
 import * as Paper   from '../tools/paper.js';
 import * as Element from '../tools/element.js';
 
+export const RESTART_EVENT_NAME = "Restart";
+
 
 export class View extends Element.Base {
     /** @type {Number} Scaling factor between canvas and DOM coordinates */
@@ -28,9 +30,12 @@ export class View extends Element.Base {
     /**
      * Update the component content and style
      */
-    update() {
-        this.shadowRoot.innerHTML = this.getHtml();
-        this.shadowRoot.appendChild(this.makeStyle());
+    renderShadowDOM() {
+        super.renderShadowDOM();
+
+        // Event listeners
+        this.shadowRoot.querySelector('#finish').
+            addEventListener( 'click', event => this.finishButtonClick(event));
 
         // Create an image with 150 DPI  for the document
         const cnv = this.shadowRoot.querySelector('canvas');
@@ -38,15 +43,24 @@ export class View extends Element.Base {
         cnv.width  = Paper.WIDTH  * Paper.DENSITY;
         cnv.height = Paper.HEIGHT * Paper.DENSITY;
 
-        console.log("Canvas image", cnv.width, cnv.height);
-
         const scale = this.shadowRoot.host.clientWidth / cnv.width;
 
         // Set display height
         cnv.style.width  = `${this.shadowRoot.host.clientWidth}px`;
         cnv.style.height = `${cnv.height * scale}px`;
-        console.log("Canvas screen", cnv.style.width, cnv.style.height);
     }
+
+    finishButtonClick(event) {
+        const customEvent = new CustomEvent(RESTART_EVENT_NAME, {
+            bubbles: true,
+            detail: { /* TODO */  }
+        });
+    
+        this.parentElement.dispatchEvent(customEvent);
+
+    }
+
+
 
     /**
      * Set the image in this view
@@ -196,7 +210,9 @@ export class View extends Element.Base {
      */
     getHtml() {
         return `
-            <h1>Share it !</h1>
+            <nav>
+                <button id="finish" class="valid">Next Scan</button>
+            </nav>
             <iframe id="pdf"></iframe>
             <canvas class="hidden"></canvas>
             <img class="hidden">

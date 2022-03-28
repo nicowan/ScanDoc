@@ -35,6 +35,10 @@ window.addEventListener('load', event => {
 
     // Attach global events
     mainView.addEventListener(Envelope.CANCEL_EVENT_NAME, onEnvelopeCanceled);
+
+    // Attach global events
+    mainView.addEventListener(Result.RESTART_EVENT_NAME, onRestartCapture);
+
 });
 
 
@@ -66,7 +70,7 @@ function onCameraShooting(event) {
  * 
  * @param {CustomEvent} event event's data
  */
- function onEnvelopeCanceled(event) {
+function onEnvelopeCanceled(event) {
     // Debugging
     console.log(event.type, event.detail);
 
@@ -82,7 +86,7 @@ function onCameraShooting(event) {
  * 
  * @param {CustomEvent} event event's data
  */
- function onEnvelopeValidated(event) {
+function onEnvelopeValidated(event) {
     // Debugging
     console.log(event.type, event.detail);
 
@@ -94,7 +98,21 @@ function onCameraShooting(event) {
     view.setSourceImage(imgFromTheCamera);
 }
 
+/**
+ * Image has been taken, restart to scan a new document
+ * 
+ * @param {CustomEvent} event event's data
+ */
+function onRestartCapture(event) {
+    // Debugging
+    console.log(event.type, event.detail);
 
+    // back to camera view (open camera screen)
+    mainView.innerHTML = "<app-camera></app-camera>";
+
+    // Delete previous image
+    imgFromTheCamera = null;
+}
 
 /*
 
