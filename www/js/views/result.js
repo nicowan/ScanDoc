@@ -9,16 +9,26 @@ import * as Element from '../tools/element.js';
 
 export const RESTART_EVENT_NAME = "Restart";
 
-
 export class View extends Element.Base {
     /** @type {Number} Scaling factor between canvas and DOM coordinates */
     scale = 1;
 
-    /** @type {HTMLImageElement} background image */
+    /** @type {HTMLImageElement} distorterd document */
     image = null;
+
+    /** @type {HTMLImageElement} corrected document */
+    img = null;
+
+    /** @type {HTMLCanvasElement} Correction element */
+    cnv = null;
+
+    /** @type {HTMLImageElement} navigation element */
+    nav = null;
 
     /** @type {Array<Number>} The positions of the distorted image corner */
     corners = [];
+
+    resultDataURL = "";
 
     /**
      * Custom element's constructor
@@ -37,17 +47,29 @@ export class View extends Element.Base {
         this.shadowRoot.querySelector('#finish').
             addEventListener( 'click', event => this.finishButtonClick(event));
 
-        // Create an image with 150 DPI  for the document
-        const cnv = this.shadowRoot.querySelector('canvas');
+        // Interface components
+        //this.cnv = this.shadowRoot.querySelector('canvas');
+        this.img = this.shadowRoot.querySelector('img');
+        this.nav = this.shadowRoot.querySelector('nav');
 
-        cnv.width  = Paper.WIDTH  * Paper.DENSITY;
-        cnv.height = Paper.HEIGHT * Paper.DENSITY;
+        // The document size uîn pixel
+        //this.cnv.width  = Paper.PIXEL_WIDTH;
+        //this.cnv.height = Paper.PIXEL_HEIGHT;
 
-        const scale = this.shadowRoot.host.clientWidth / cnv.width;
+        // place for the image
+        const width  = this.shadowRoot.host.clientWidth;
+        const height = this.shadowRoot.host.clientHeight -
+                       this.shadowRoot.querySelector('nav').clientHeight -
+                       50;
 
-        // Set display height
-        cnv.style.width  = `${this.shadowRoot.host.clientWidth}px`;
-        cnv.style.height = `${cnv.height * scale}px`;
+        // Find best fit in display
+        const scaleX = width  / Paper.PIXEL_WIDTH;
+        const scaleY = height / Paper.PIXEL_HEIGHT;
+        const scale  = Math.min(scaleX, scaleY);
+
+        // Set display height (image)
+        this.img.style.width  = `${Paper.PIXEL_WIDTH  * scale}px`;
+        this.img.style.height = `${Paper.PIXEL_HEIGHT * scale}px`;
     }
 
     finishButtonClick(event) {
@@ -57,7 +79,6 @@ export class View extends Element.Base {
         });
     
         this.parentElement.dispatchEvent(customEvent);
-
     }
 
 
@@ -71,7 +92,8 @@ export class View extends Element.Base {
 
         // Display everything
         if (this.corners.length == 8) {
-            this.correctPerspective(null, null, this.corners);
+            this.imageCorrection(this.image, this.img, this.corners);
+            this.createPdf(this.resultDataURL);
         }
     }
 
@@ -80,6 +102,76 @@ export class View extends Element.Base {
             this.corners[i] = polygon[i];
         }
     }
+
+    /**
+     * Returns the array with the target paper's corners coordinates
+     * @return {Array>Number} The corners coordinates
+     */
+    getPaperCorners() {
+        return [
+            0,                  0,                      // Top    - Left
+            Paper.PIXEL_WIDTH,  0,                      // Top    - Right
+            Paper.PIXEL_WIDTH,  Paper.PIXEL_HEIGHT,     // Bottom - Right
+            0,                  Paper.PIXEL_HEIGHT      // Bottom - Left
+        ];
+    }
+
+
+
+    /**
+     * Apply the perspective transformation to src image and show it in dst image
+     * 
+     * @param {HTMLImageElement} src 
+     * @param {HTMLImageElement} dst 
+     * @param {Array<Number>} corners Array of corners coordinates
+     */
+    imageCorrection(src, dst, corners) {
+        // Convert the source image definition to OpenCV objects
+        const srcImageData = cv.imread(src);
+        const srcCorners = cv.matFromArray(4, 1, cv.CV_32FC2, corners);
+
+        // The destination image data in openCV format
+        const dstImageData = new cv.Mat();
+        const dstCorners = cv.matFromArray(4, 1, cv.CV_32FC2, this.getPaperCorners());
+        const dstSize = new cv.Size(Paper.PIXEL_WIDTH, Paper.PIXEL_HEIGHT);
+
+        // Compute the transformation matrix
+        const transform = cv.getPerspectiveTransform(srcCorners, dstCorners);
+
+        // Transform the image
+        cv.warpPerspective(
+            srcImageData,
+            dstImageData,
+            transform,
+            dstSize,
+            cv.INTER_LINEAR,
+            cv.BORDER_CONSTANT,
+            new cv.Scalar()
+        );
+
+        // Copy the result to a canvas
+        const destinationCanvas = document.createElement('canvas');
+        cv.imshow(destinationCanvas, dstImageData);
+
+        // Save the canvas image as JPG
+        this.resultDataURL = destinationCanvas.toDataURL("image/jpeg")
+
+        // Copy canvas to image to make it shareable
+        const img = this.shadowRoot.querySelector('img');
+        img.src = this.resultDataURL;
+
+        // Free allocated memory
+        srcImageData.delete();
+        srcCorners.delete();
+        dstImageData.delete();
+        dstCorners.delete();
+        transform.delete();
+    }
+
+
+
+
+
 
     /**
      * Apply a perspective transform to the image and copy result in the canvas
@@ -106,7 +198,7 @@ export class View extends Element.Base {
         const dstImage = new cv.Mat();
 
         /** @type {OpenCvMattrix} Output document's corner  */
-        const dstCorners = cv.matFromArray(4, 1, cv.CV_32FC2, [
+        const destinationCorners = cv.matFromArray(4, 1, cv.CV_32FC2, [
             0,                  0,
             dstElem.width,  0,
             dstElem.width,  dstElem.height,
@@ -116,7 +208,7 @@ export class View extends Element.Base {
         const dstSize = new cv.Size(dstElem.width,  dstElem.height);
 
         /** @type {OpenCvTransform} Transformation mattrix */
-        const transform = cv.getPerspectiveTransform(srcCorners, dstCorners);
+        const transform = cv.getPerspectiveTransform(srcCorners, destinationCorners);
 
         cv.warpPerspective(srcImage, dstImage, transform, dstSize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
 
@@ -139,7 +231,7 @@ export class View extends Element.Base {
         srcImage.delete();
         srcCorners.delete();
         dstImage.delete();
-        dstCorners.delete();
+        destinationCorners.delete();
         transform.delete();
     }
 
@@ -170,31 +262,21 @@ export class View extends Element.Base {
 
 
     async createPdf(image) {
-        /** @type {HTMLCanvasElement} */
-        const cnv = this.shadowRoot.querySelector('canvas');
-
-        /** @type {CanvasRenderingContext2D} */
-        const ctx = cnv.getContext('2d');
-
-
         const pdfDoc = await PDFLib.PDFDocument.create();
 
-        //const jpgUrl = 'img/exemple.jpg'
-        //const jpgImageBytes = await fetch(jpgUrl).then((res) => res.arrayBuffer())
-        //const jpgImageBytes = ctx.getImageData(0, 0, cnv.width, cnv.height);
         const jpgImageBytes = image;
         const jpgImage = await pdfDoc.embedJpg(jpgImageBytes)
 
         const page = pdfDoc.addPage([
-            Math.round(210 / 25.4 * 72),
-            Math.round(297 / 25.4 * 72)
+            Math.round(Paper.WIDTH / 25.4 * 72),
+            Math.round(Paper.HEIGHT / 25.4 * 72)
         ]);
 
         page.drawImage(jpgImage, {
             x: 0,
             y: 0,
-            width: 210 / 25.4 * 72,
-            height: 297 / 25.4 * 72,
+            width: Paper.WIDTH / 25.4 * 72,
+            height: Paper.HEIGHT / 25.4 * 72,
         })
 
         const pdfDataUri = await pdfDoc.saveAsBase64({ dataUri: true });
@@ -212,10 +294,11 @@ export class View extends Element.Base {
         return `
             <nav>
                 <button id="finish" class="valid">Next Scan</button>
+                <a href="#pdf" target="_blank">Download PDF</a>
             </nav>
-            <iframe id="pdf"></iframe>
+            <img>
+            <iframe id="pdf">
             <canvas class="hidden"></canvas>
-            <img class="hidden">
         `;
     }
 
@@ -247,10 +330,10 @@ export class View extends Element.Base {
             width:100%;
             height: 400px;
             border: 4px solid red;
+            background-color: white;
         }
 
         img {
-            width:100%;
             margin:0;
             padding:0;
         }
