@@ -10,31 +10,54 @@ import * as Element from '../tools/element.js';
 export const RESTART_EVENT_NAME = "Restart";
 
 export class View extends Element.Base {
-    /** @type {Number} Scaling factor between canvas and DOM coordinates */
-    scale = 1;
 
-    /** @type {HTMLImageElement} distorterd document */
-    image = null;
+    /** @type {Number} Navigation bar height in pixel */
+    NAVBAR_HEIGHT = 50;
 
     /** @type {HTMLImageElement} corrected document */
-    img = null;
-
-    /** @type {HTMLCanvasElement} Correction element */
-    cnv = null;
-
-    /** @type {HTMLImageElement} navigation element */
-    nav = null;
+    imgOutput = null;
 
     /** @type {Array<Number>} The positions of the distorted image corner */
     corners = [];
 
-    resultDataURL = "";
+    /** @type {String} Correction time stamp */
+    timeStamp = "";
 
     /**
      * Custom element's constructor
      */
     constructor() {
         super();
+        this.timeStamp = this.utcTimeStamp();
+    }
+
+    /**
+     * Get UTC time stamp
+     * 
+     * @returns {String} The UTC TimeStamp 
+     */
+    utcTimeStamp() {
+        const stamp = new Date();
+        return stamp.getUTCFullYear()
+            + '-' + this.pad( stamp.getUTCMonth() + 1 )
+            + '-' + this.pad( stamp.getUTCDate() )
+            + '-' + this.pad( stamp.getUTCHours() )
+            + '-' + this.pad( stamp.getUTCMinutes() )
+            + '-' + this.pad( stamp.getUTCSeconds());
+    }
+
+    /**
+     * Padd number with leading zero
+     * 
+     * @param {Number} number The number to write
+     *
+     * @returns The padded number
+     */
+    pad(number) {
+        if ( number < 10 ) {
+            return '0' + number;
+        }
+        return number;
     }
 
     /**
@@ -48,19 +71,13 @@ export class View extends Element.Base {
             addEventListener( 'click', event => this.finishButtonClick(event));
 
         // Interface components
-        //this.cnv = this.shadowRoot.querySelector('canvas');
-        this.img = this.shadowRoot.querySelector('img');
-        this.nav = this.shadowRoot.querySelector('nav');
-
-        // The document size uîn pixel
-        //this.cnv.width  = Paper.PIXEL_WIDTH;
-        //this.cnv.height = Paper.PIXEL_HEIGHT;
+        this.imgOutput = this.shadowRoot.querySelector('img');
 
         // place for the image
         const width  = this.shadowRoot.host.clientWidth;
         const height = this.shadowRoot.host.clientHeight -
                        this.shadowRoot.querySelector('nav').clientHeight -
-                       50;
+                       this.NAVBAR_HEIGHT;
 
         // Find best fit in display
         const scaleX = width  / Paper.PIXEL_WIDTH;
@@ -68,8 +85,8 @@ export class View extends Element.Base {
         const scale  = Math.min(scaleX, scaleY);
 
         // Set display height (image)
-        this.img.style.width  = `${Paper.PIXEL_WIDTH  * scale}px`;
-        this.img.style.height = `${Paper.PIXEL_HEIGHT * scale}px`;
+        this.imgOutput.style.width  = `${Paper.PIXEL_WIDTH  * scale}px`;
+        this.imgOutput.style.height = `${Paper.PIXEL_HEIGHT * scale}px`;
     }
 
     finishButtonClick(event) {
@@ -81,19 +98,19 @@ export class View extends Element.Base {
         this.parentElement.dispatchEvent(customEvent);
     }
 
-
-
     /**
      * Set the image in this view
      * @param {Image} imageRaw The image taken by the camera
      */
     setSourceImage(imageRaw) {
-        this.image = imageRaw;
-
         // Display everything
         if (this.corners.length == 8) {
-            this.imageCorrection(this.image, this.img, this.corners);
-            this.createPdf(this.resultDataURL);
+            /** @type {String} Corrected image's data (JPG encoded in base64) */
+            const imgUriData = this.imageCorrection(imageRaw, this.corners);
+
+            // Make link for download
+            this.createOutputImg(imgUriData);
+            this.createOutputPdf(imgUriData);
         }
     }
 
@@ -116,16 +133,15 @@ export class View extends Element.Base {
         ];
     }
 
-
-
     /**
-     * Apply the perspective transformation to src image and show it in dst image
+     * Produce a new image with corrected perspective
      * 
      * @param {HTMLImageElement} src 
-     * @param {HTMLImageElement} dst 
      * @param {Array<Number>} corners Array of corners coordinates
+     * 
+     * @returns {String} Base64 Encoded JPG image
      */
-    imageCorrection(src, dst, corners) {
+    imageCorrection(src, corners) {
         // Convert the source image definition to OpenCV objects
         const srcImageData = cv.imread(src);
         const srcCorners = cv.matFromArray(4, 1, cv.CV_32FC2, corners);
@@ -153,137 +169,62 @@ export class View extends Element.Base {
         const destinationCanvas = document.createElement('canvas');
         cv.imshow(destinationCanvas, dstImageData);
 
-        // Save the canvas image as JPG
-        this.resultDataURL = destinationCanvas.toDataURL("image/jpeg")
-
-        // Copy canvas to image to make it shareable
-        const img = this.shadowRoot.querySelector('img');
-        img.src = this.resultDataURL;
-
         // Free allocated memory
         srcImageData.delete();
         srcCorners.delete();
         dstImageData.delete();
         dstCorners.delete();
         transform.delete();
+
+        // Save the canvas image as JPG
+        return destinationCanvas.toDataURL("image/jpeg")
     }
-
-
-
-
-
 
     /**
-     * Apply a perspective transform to the image and copy result in the canvas
-     * @see https://docs.opencv.org/3.4/dd/d52/tutorial_js_geometric_transformations.html
+     * Generate a downloadable image behind an <a> element
      * 
-     * @param {String} inputImageId ID of the input image
-     * @param {String} outputCanvasId ID of the output canvas
-     * @param {Array}  corners Array of corners coordinates
+     * @param {string} uriJpgData The JPG image coded in base64
      */
-    correctPerspective(inputImageId, outputCanvasId, corners) {
-        /** @type {HTMLImageElement} */
-        const srcElem = this.image; // document.getElementById(inputImageId);
-
-        /** @type {OpenCvImage} Image data for OpenCV */
-        const srcImage = cv.imread(srcElem);
-
-        /** @type {OpenCvMattrix} Document's corner from the camera */
-        const srcCorners = cv.matFromArray(4, 1, cv.CV_32FC2, corners);
-
-        /** @type {HTMLCanvasElement} */
-        const dstElem = this.shadowRoot.querySelector('canvas');
-
-        /** @type {OpenCvMattrix} */
-        const dstImage = new cv.Mat();
-
-        /** @type {OpenCvMattrix} Output document's corner  */
-        const destinationCorners = cv.matFromArray(4, 1, cv.CV_32FC2, [
-            0,                  0,
-            dstElem.width,  0,
-            dstElem.width,  dstElem.height,
-            0,              dstElem.height]);
-
-        /** @type {OpenCvSize} OpenCV destination image's size */
-        const dstSize = new cv.Size(dstElem.width,  dstElem.height);
-
-        /** @type {OpenCvTransform} Transformation mattrix */
-        const transform = cv.getPerspectiveTransform(srcCorners, destinationCorners);
-
-        cv.warpPerspective(srcImage, dstImage, transform, dstSize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
-
-        dstElem.width  = dstSize.cols;
-        dstElem.height = dstSize.rows;
-
-        cv.imshow(dstElem, dstImage);
-        
-        // Copy canvas to image to make it shareable
+    createOutputImg(uriJpgData) {
+        // Show result on screen
         const img = this.shadowRoot.querySelector('img');
-        img.src = dstElem.toDataURL("image/jpeg");
+        img.src = uriJpgData;
 
-        img.style.width = dstElem.style.width;
-        img.style.height = dstElem.style.height;
-
-
-        this.createPdf(dstElem.toDataURL("image/jpeg"));
-
-        // Free allocated memory
-        srcImage.delete();
-        srcCorners.delete();
-        dstImage.delete();
-        destinationCorners.delete();
-        transform.delete();
+        // Create the download link
+        const saveJpgLink = this.shadowRoot.querySelector("#saveJPG");
+        saveJpgLink.download = `${this.timeStamp}-scan-doc.jpg`;
+        saveJpgLink.href = uriJpgData;
     }
 
-    dataURItoBlob(dataURI) {
-        // convert base64 to raw binary data held in a string
-        // doesn't handle URLEncoded DataURIs - see SO answer #6850276 for code that does this
-        var byteString = atob(dataURI.split(',')[1]);
-      
-        // separate out the mime component
-        var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0]
-      
-        // write the bytes of the string to an ArrayBuffer
-        var ab = new ArrayBuffer(byteString.length);
-      
-        // create a view into the buffer
-        var ia = new Uint8Array(ab);
-      
-        // set the bytes of the buffer to the correct values
-        for (var i = 0; i < byteString.length; i++) {
-            ia[i] = byteString.charCodeAt(i);
-        }
-      
-        // write the ArrayBuffer to a blob, and you're done
-        var blob = new Blob([ab], {type: mimeString});
-        return blob;
-      
-      }
-
-
-    async createPdf(image) {
+    /**
+     * Generate a downloadable PDF behind an <a> element
+     * 
+     * @param {string} uriJpgData The JPG image coded in base64
+     */
+    async createOutputPdf(uriJpgData) {
         const pdfDoc = await PDFLib.PDFDocument.create();
 
-        const jpgImageBytes = image;
-        const jpgImage = await pdfDoc.embedJpg(jpgImageBytes)
+        const jpgImage = await pdfDoc.embedJpg(uriJpgData)
 
         const page = pdfDoc.addPage([
-            Math.round(Paper.WIDTH / 25.4 * 72),
+            Math.round(Paper.WIDTH  / 25.4 * 72),
             Math.round(Paper.HEIGHT / 25.4 * 72)
         ]);
 
+        // Insert the image in the PDF document
         page.drawImage(jpgImage, {
             x: 0,
             y: 0,
-            width: Paper.WIDTH / 25.4 * 72,
+            width:  Paper.WIDTH  / 25.4 * 72,
             height: Paper.HEIGHT / 25.4 * 72,
         })
 
-        const pdfDataUri = await pdfDoc.saveAsBase64({ dataUri: true });
-        this.shadowRoot.getElementById('pdf').src = pdfDataUri;
+        const uriPdfData = await pdfDoc.saveAsBase64({ dataUri: true });
+
+        const savePdfLink = this.shadowRoot.querySelector("#savePDF");
+        savePdfLink.download = `${this.timeStamp}-scan-doc.pdf`;
+        savePdfLink.href = uriPdfData;
     }
-
-
 
     /**
      * The custom element's HTML content
@@ -294,11 +235,10 @@ export class View extends Element.Base {
         return `
             <nav>
                 <button id="finish" class="valid">Next Scan</button>
-                <a href="#pdf" target="_blank">Download PDF</a>
+                <a id="saveJPG">Download JPG</a>
+                <a id="savePDF">Download PDF</a>
             </nav>
             <img>
-            <iframe id="pdf">
-            <canvas class="hidden"></canvas>
         `;
     }
 
@@ -307,7 +247,7 @@ export class View extends Element.Base {
      * 
      * @returns {string} The custom element's CSS content
      */
-     getStyle() {
+    getStyle() {
         return ` ${super.getStyle()}
 
         nav {
@@ -326,24 +266,12 @@ export class View extends Element.Base {
             font-weight: bolder;
         }
 
-        #pdf {
-            width:100%;
-            height: 400px;
-            border: 4px solid red;
-            background-color: white;
-        }
-
         img {
             margin:0;
             padding:0;
         }
-
-        .hidden {
-            display: none;
-        }
         `;
     }
-
 
     /**
      * @type {Array>String>} Array of observed attributes
