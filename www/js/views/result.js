@@ -270,6 +270,12 @@ export class View extends Element.Base {
             margin:0;
             padding:0;
         }
+
+        a {
+            text-decoration: none;
+            border: 1px solid white;
+            color: white;
+        }
         `;
     }
 

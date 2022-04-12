@@ -7,7 +7,8 @@
 import * as Paper    from '../tools/paper.js';
 import * as Geometry from '../tools/geometry.js';
 import * as Element  from '../tools/element.js';
-import * as Pointers from '../tools/pointers.js'
+import * as Pointers from '../tools/pointers.js';
+import * as WrapOCV  from '../tools/wrap-ocv.js';
 
 export const ENVELOPE_EVENT_NAME = "EnvelopeValid";
 export const CANCEL_EVENT_NAME   = "EnvelopeCancel";
@@ -79,13 +80,58 @@ export class View extends Element.Base {
         cnv.height = img.clientHeight;
         cnv.style.height = `${cnv.height}px`;
 
+        /** @type {CanvasRenderingContext2D} */
+        const ctx = cnv.getContext('2d');
+
+
+        // Draw the image in the canvas
+        ctx.drawImage(img, 0, 0, cnv.width, cnv.height);
+
+        // Detect the paper
+        const tempShape = WrapOCV.detectPaperInCanvas(cnv);
+        const scale = 1;
+
+        // Order vertex clockwise starting from upper-left
+        for(let j = 1; j < tempShape.length - 1; j++) {
+            for(let i = 0; i < tempShape.length - j; i++) {
+                if (tempShape[i].y > tempShape[i+1].y) {
+                    let temp = tempShape[i+1];
+                    tempShape[i+1] = tempShape[i];
+                    tempShape[i] = temp;
+                }
+            }
+        }
+
+        // Swap 2 first elements if x is not oriented
+        if (tempShape[0].x > tempShape[1].x) {
+            let temp = tempShape[1];
+            tempShape[1] = tempShape[0];
+            tempShape[0] = temp;
+        }
+
+        // Swap 2 last elements if x is not oriented
+        if (tempShape[2].x < tempShape[3].x) {
+            let temp = tempShape[3];
+            tempShape[3] = tempShape[2];
+            tempShape[2] = temp;
+        }
+
+        this.polygon = new Geometry.Polygon()
+            .addVertex(tempShape[0].scale(scale))
+            .addVertex(tempShape[1].scale(scale))
+            .addVertex(tempShape[2].scale(scale))
+            .addVertex(tempShape[3].scale(scale));
+
+
         // Create document's corners
+        /*
         this.polygon = new Geometry.Polygon()
             .addVertex(new Geometry.Vector(0.1 * cnv.width, 0.1 * cnv.height))
             .addVertex(new Geometry.Vector(0.9 * cnv.width, 0.1 * cnv.height))
             .addVertex(new Geometry.Vector(0.9 * cnv.width, 0.9 * cnv.height))
             .addVertex(new Geometry.Vector(0.1 * cnv.width, 0.9 * cnv.height));
- 
+        */
+
         this.updateCanvas();
     }
 

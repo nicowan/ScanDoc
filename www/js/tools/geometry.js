@@ -98,7 +98,6 @@ export class Polygon {
     /** @type {Number} handle radius in pixel */
     radius = 25;
 
-
     /**
      * Polygon constructor
      * 
@@ -124,7 +123,7 @@ export class Polygon {
     }
 
     /**
-     * Add a vertext to this polygon
+     * Add a vertex to this polygon
      * 
      * @param {Vector} point The vertex to add to the polygon
      * @returns this object (to chain commands)
@@ -144,7 +143,6 @@ export class Polygon {
     isIndexValid(index) {
         return index >= 0 && index < this.vertices.length;
     }
-
 
     /**
      * Draw the polygon with the given drawing context
@@ -192,24 +190,10 @@ export class Polygon {
 
         // Reference on points
         const curr = this.vertices[vertexIdx];
-        //const prev = this.vertices[(vertexIdx + len - 1) % len];
-        //const next = this.vertices[(vertexIdx + 1) % len];
-
-        // polygon borders
-        //const v1 = new Vector( next.x - curr.x, next.y - curr.y).scale(0.25);
-        //const v2 = new Vector( prev.x - curr.x, prev.y - curr.y);
 
         // Draw it
         ctx.beginPath();
-        //ctx.moveTo(p0.x, p0.y);
-        ctx.arc(
-            curr.x, curr.y,
-            this.radius,    // v1.length(),
-            0,              // v1.angle(),
-            Math.PI * 2     // v2.angle()
-        );
-        //ctx.lineTo(p0.x, p0.y);
-
+        ctx.arc(curr.x, curr.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();    
     }
@@ -227,7 +211,6 @@ export class Polygon {
         }
         return -1;
     }
-
 
     /**
      * Move the given vertex
